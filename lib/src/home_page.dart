@@ -145,6 +145,8 @@ class _HomePageState extends State<HomePage> {
           key: const ValueKey<String>('workout'),
           controller: widget.controller,
           onLogSet: _handleLogSet,
+          onRemoveSet: _handleRemoveSet,
+          onRemoveExercise: _handleRemoveExercise,
           onCompleteWorkout: _handleCompleteWorkout,
           onOpenRoutines: () {
             setState(() {
@@ -250,6 +252,62 @@ class _HomePageState extends State<HomePage> {
         _selectedIndex = 4;
       });
       _showSnack('Workout completed and moved into history.');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _showSnack(_messageForError(error));
+    }
+  }
+
+  Future<void> _handleRemoveSet(WorkoutExercise exercise, WorkoutSet set) async {
+    final confirmed = await _confirmAction(
+      context,
+      title: 'Remove set?',
+      message: 'This set will be removed from the active workout.',
+      confirmLabel: 'Remove',
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      await widget.controller.removeSet(exercise: exercise, set: set);
+      if (!mounted) {
+        return;
+      }
+
+      _showSnack('Set removed.');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _showSnack(_messageForError(error));
+    }
+  }
+
+  Future<void> _handleRemoveExercise(WorkoutExercise exercise) async {
+    final confirmed = await _confirmAction(
+      context,
+      title: 'Remove exercise?',
+      message: 'This exercise and all of its sets will be removed from the active workout.',
+      confirmLabel: 'Remove',
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      await widget.controller.removeExercise(exercise);
+      if (!mounted) {
+        return;
+      }
+
+      _showSnack('Exercise removed.');
     } catch (error) {
       if (!mounted) {
         return;
@@ -607,12 +665,16 @@ class ActiveWorkoutTab extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onLogSet,
+    required this.onRemoveSet,
+    required this.onRemoveExercise,
     required this.onCompleteWorkout,
     required this.onOpenRoutines,
   });
 
   final AppController controller;
   final Future<void> Function(WorkoutExercise exercise, WorkoutSet? set) onLogSet;
+  final Future<void> Function(WorkoutExercise exercise, WorkoutSet set) onRemoveSet;
+  final Future<void> Function(WorkoutExercise exercise) onRemoveExercise;
   final Future<void> Function() onCompleteWorkout;
   final VoidCallback onOpenRoutines;
 
@@ -633,6 +695,14 @@ class ActiveWorkoutTab extends StatelessWidget {
         .expand((exercise) => exercise.sets)
         .where((set) => set.isComplete)
         .length;
+    final openSets = workout.exercises
+        .expand((exercise) => exercise.sets)
+        .where((set) => !set.isComplete)
+        .length;
+    final emptyExercises = workout.exercises
+        .where((exercise) => exercise.sets.every((set) => !set.isComplete))
+        .length;
+    final canComplete = workout.exercises.isNotEmpty && openSets == 0 && emptyExercises == 0;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -678,13 +748,48 @@ class ActiveWorkoutTab extends StatelessWidget {
               ],
               const SizedBox(height: 18),
               FilledButton.icon(
-                onPressed: controller.isMutatingWorkout ? null : onCompleteWorkout,
+                onPressed: controller.isMutatingWorkout || !canComplete ? null : onCompleteWorkout,
                 icon: const Icon(Icons.check_circle_outline_rounded),
                 label: const Text('Complete workout'),
               ),
             ],
           ),
         ),
+        if (!canComplete) ...<Widget>[
+          const SizedBox(height: 14),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Workout still has unfinished items',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Log or remove every open set, and remove exercises with no logged sets before completing.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF6C655D),
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: <Widget>[
+                      _InfoPill(label: '$openSets open sets'),
+                      _InfoPill(label: '$emptyExercises empty exercises'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 18),
         ...workout.exercises.map(
           (exercise) => Card(
@@ -726,6 +831,13 @@ class ActiveWorkoutTab extends StatelessWidget {
                       IconButton(
                         onPressed: controller.isMutatingWorkout
                             ? null
+                            : () => onRemoveExercise(exercise),
+                        icon: const Icon(Icons.delete_outline_rounded),
+                        tooltip: 'Remove exercise',
+                      ),
+                      IconButton(
+                        onPressed: controller.isMutatingWorkout
+                            ? null
                             : () => onLogSet(exercise, null),
                         icon: const Icon(Icons.add_circle_outline_rounded),
                         tooltip: 'Add set',
@@ -742,6 +854,9 @@ class ActiveWorkoutTab extends StatelessWidget {
                         onLog: controller.isMutatingWorkout || entry.value.isComplete
                             ? null
                             : () => onLogSet(exercise, entry.value),
+                        onRemove: controller.isMutatingWorkout
+                            ? null
+                            : () => onRemoveSet(exercise, entry.value),
                       ),
                     ),
                   ),
@@ -872,39 +987,63 @@ class HistoryTab extends StatelessWidget {
             .length;
 
         return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  workout.name,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () => _showHistoryWorkoutDetails(context, controller, workout),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              workout.name,
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Completed ${_formatDateTime(workout.completedAt ?? workout.startedAt)}',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: const Color(0xFF6C655D),
+                                  ),
+                            ),
+                          ],
+                        ),
                       ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Completed ${_formatDateTime(workout.completedAt ?? workout.startedAt)}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF6C655D),
-                      ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: <Widget>[
-                    _InfoPill(label: '${workout.exercises.length} exercises'),
-                    _InfoPill(label: '$completedSetCount completed sets'),
-                    if (workout.routineId != null) const _InfoPill(label: 'From routine'),
+                      const Icon(Icons.chevron_right_rounded),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: <Widget>[
+                      _InfoPill(label: '${workout.exercises.length} exercises'),
+                      _InfoPill(label: '$completedSetCount completed sets'),
+                      if (workout.routineId != null) const _InfoPill(label: 'From routine'),
+                    ],
+                  ),
+                  if (workout.notes.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 14),
+                    Text(workout.notes),
                   ],
-                ),
-                if (workout.notes.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 14),
-                  Text(workout.notes),
+                  Text(
+                    'Tap to inspect exercises and logged sets',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF6C655D),
+                        ),
+                  ),
                 ],
-              ],
+              ),
             ),
           ),
         );
@@ -918,11 +1057,13 @@ class _WorkoutSetTile extends StatelessWidget {
     required this.index,
     required this.set,
     this.onLog,
+    this.onRemove,
   });
 
   final int index;
   final WorkoutSet set;
   final VoidCallback? onLog;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -967,13 +1108,95 @@ class _WorkoutSetTile extends StatelessWidget {
               ],
             ),
           ),
-          if (set.isComplete)
-            Icon(Icons.check_circle_rounded, color: tone)
-          else
-            FilledButton.tonal(
-              onPressed: onLog,
-              child: const Text('Log'),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (set.isComplete)
+                Icon(Icons.check_circle_rounded, color: tone)
+              else
+                FilledButton.tonal(
+                  onPressed: onLog,
+                  child: const Text('Log'),
+                ),
+              if (onRemove != null) ...<Widget>[
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: onRemove,
+                  tooltip: 'Remove set',
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryExerciseSection extends StatelessWidget {
+  const _HistoryExerciseSection({
+    required this.controller,
+    required this.exercise,
+  });
+
+  final AppController controller;
+  final WorkoutExercise exercise;
+
+  @override
+  Widget build(BuildContext context) {
+    final completedSets = exercise.sets.where((set) => set.isComplete).toList();
+    final totalVolume = completedSets.fold<double>(
+      0,
+      (sum, set) => sum + ((set.reps ?? 0) * (set.weightKg ?? 0)),
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE8D9C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            controller.exerciseName(exercise.exerciseId),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              _InfoPill(label: '${completedSets.length} completed sets'),
+              _InfoPill(label: '${_formatDouble(totalVolume)} kg volume'),
+              _InfoPill(label: '${exercise.restSeconds}s rest'),
+            ],
+          ),
+          if (exercise.notes.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 12),
+            Text(
+              exercise.notes,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF6C655D),
+                  ),
             ),
+          ],
+          const SizedBox(height: 14),
+          ...exercise.sets.asMap().entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _WorkoutSetTile(
+                index: entry.key + 1,
+                set: entry.value,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1118,6 +1341,98 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+Future<void> _showHistoryWorkoutDetails(
+  BuildContext context,
+  AppController controller,
+  WorkoutSession workout,
+) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (context) {
+      return DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.82,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) {
+          final completedSetCount = workout.exercises
+              .expand((exercise) => exercise.sets)
+              .where((set) => set.isComplete)
+              .length;
+          final totalVolume = workout.exercises
+              .expand((exercise) => exercise.sets)
+              .where((set) => set.isComplete)
+              .fold<double>(
+                0,
+                (sum, set) => sum + ((set.reps ?? 0) * (set.weightKg ?? 0)),
+              );
+
+          return Material(
+            color: const Color(0xFFF7F1E8),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+              children: <Widget>[
+                Center(
+                  child: Container(
+                    width: 52,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD7C1AA),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  workout.name,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Completed ${_formatDateTime(workout.completedAt ?? workout.startedAt)}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF6C655D),
+                      ),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    _InfoPill(label: '${workout.exercises.length} exercises'),
+                    _InfoPill(label: '$completedSetCount completed sets'),
+                    _InfoPill(label: '${_formatDouble(totalVolume)} kg total volume'),
+                  ],
+                ),
+                if (workout.notes.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 14),
+                  Text(
+                    workout.notes,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+                const SizedBox(height: 18),
+                ...workout.exercises.map(
+                  (exercise) => _HistoryExerciseSection(
+                    controller: controller,
+                    exercise: exercise,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
 Future<_SetDraft?> _showSetDialog(
   BuildContext context, {
   WorkoutSet? existingSet,
@@ -1133,60 +1448,96 @@ Future<_SetDraft?> _showSetDialog(
   );
 
   try {
-    return await showDialog<_SetDraft>(
+    return await showModalBottomSheet<_SetDraft>(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (context) {
-        return AlertDialog(
-          title: Text(existingSet == null ? 'Add set' : 'Log planned set'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              TextField(
-                controller: repsController,
-                keyboardType: const TextInputType.numberWithOptions(),
-                decoration: const InputDecoration(
-                  labelText: 'Reps',
-                  hintText: '8',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: weightController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Weight (kg)',
-                  hintText: '70',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: rirController,
-                keyboardType: const TextInputType.numberWithOptions(),
-                decoration: const InputDecoration(
-                  labelText: 'RIR (optional)',
-                  hintText: '2',
-                ),
-              ),
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop(
-                  _SetDraft(
-                    reps: int.tryParse(repsController.text.trim()),
-                    weightKg: double.tryParse(weightController.text.trim()),
-                    rir: int.tryParse(rirController.text.trim()),
+        final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+        return SafeArea(
+          child: AnimatedPadding(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 20),
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        existingSet == null ? 'Add set' : 'Log planned set',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: repsController,
+                        keyboardType: const TextInputType.numberWithOptions(),
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Reps',
+                          hintText: '8',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: weightController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Weight (kg)',
+                          hintText: '70',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: rirController,
+                        keyboardType: const TextInputType.numberWithOptions(),
+                        textInputAction: TextInputAction.done,
+                        decoration: const InputDecoration(
+                          labelText: 'RIR (optional)',
+                          hintText: '2',
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Cancel'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () {
+                                Navigator.of(context).pop(
+                                  _SetDraft(
+                                    reps: int.tryParse(repsController.text.trim()),
+                                    weightKg: double.tryParse(weightController.text.trim()),
+                                    rir: int.tryParse(rirController.text.trim()),
+                                  ),
+                                );
+                              },
+                              child: const Text('Save'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                );
-              },
-              child: const Text('Save'),
+                ),
+              ),
             ),
-          ],
+          ),
         );
       },
     );
@@ -1195,6 +1546,33 @@ Future<_SetDraft?> _showSetDialog(
     weightController.dispose();
     rirController.dispose();
   }
+}
+
+Future<bool?> _confirmAction(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmLabel,
+}) {
+  return showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 class _SetDraft {

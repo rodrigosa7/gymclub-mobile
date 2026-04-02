@@ -113,6 +113,29 @@ class GymClubApiClient {
     return WorkoutSession.fromJson(Map<String, dynamic>.from(payload as Map));
   }
 
+  Future<WorkoutSession> removeWorkoutSet({
+    required String workoutId,
+    required String workoutExerciseId,
+    required String setId,
+  }) async {
+    final payload = await _delete(
+      '/api/workouts/$workoutId/exercises/$workoutExerciseId/sets/$setId',
+    );
+
+    return WorkoutSession.fromJson(Map<String, dynamic>.from(payload as Map));
+  }
+
+  Future<WorkoutSession> removeWorkoutExercise({
+    required String workoutId,
+    required String workoutExerciseId,
+  }) async {
+    final payload = await _delete(
+      '/api/workouts/$workoutId/exercises/$workoutExerciseId',
+    );
+
+    return WorkoutSession.fromJson(Map<String, dynamic>.from(payload as Map));
+  }
+
   Future<Object?> _get(String path) async {
     final response = await _client.get(_uri(path));
     return _decodeResponse(response);
@@ -132,6 +155,14 @@ class GymClubApiClient {
       _uri(path),
       headers: _headers,
       body: jsonEncode(body),
+    );
+    return _decodeResponse(response);
+  }
+
+  Future<Object?> _delete(String path) async {
+    final response = await _client.delete(
+      _uri(path),
+      headers: _headers,
     );
     return _decodeResponse(response);
   }

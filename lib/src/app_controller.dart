@@ -153,6 +153,42 @@ class AppController extends ChangeNotifier {
     });
   }
 
+  Future<void> removeSet({
+    required WorkoutExercise exercise,
+    required WorkoutSet set,
+  }) async {
+    final workout = activeWorkout;
+
+    if (workout == null) {
+      throw StateError('No active workout.');
+    }
+
+    await _runWorkoutMutation(() async {
+      activeWorkout = await api.removeWorkoutSet(
+        workoutId: workout.id,
+        workoutExerciseId: exercise.id,
+        setId: set.id,
+      );
+      errorMessage = null;
+    });
+  }
+
+  Future<void> removeExercise(WorkoutExercise exercise) async {
+    final workout = activeWorkout;
+
+    if (workout == null) {
+      throw StateError('No active workout.');
+    }
+
+    await _runWorkoutMutation(() async {
+      activeWorkout = await api.removeWorkoutExercise(
+        workoutId: workout.id,
+        workoutExerciseId: exercise.id,
+      );
+      errorMessage = null;
+    });
+  }
+
   void updateExerciseSearch(String value) {
     exerciseSearch = value;
     notifyListeners();

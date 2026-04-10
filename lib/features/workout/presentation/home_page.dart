@@ -58,17 +58,6 @@ class _HomePageState extends State<HomePage> {
           appBar: AppBar(
             title: Text(_titleForIndex(_selectedIndex)),
             actions: <Widget>[
-              if (widget.controller.isRefreshing || widget.controller.isMutatingWorkout)
-                const Padding(
-                  padding: EdgeInsets.only(right: 12),
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                ),
               if (_selectedIndex == 2)
                 IconButton(
                   tooltip: 'Finish workout',
@@ -76,12 +65,6 @@ class _HomePageState extends State<HomePage> {
                     _activeWorkoutKey.currentState?.showFinishWorkoutSheet();
                   },
                   icon: const Icon(Icons.check_rounded),
-                )
-              else
-                IconButton(
-                  tooltip: 'Refresh',
-                  onPressed: _handleRefresh,
-                  icon: const Icon(Icons.refresh_rounded),
                 ),
             ],
           ),
@@ -178,23 +161,6 @@ class _HomePageState extends State<HomePage> {
         );
       default:
         return const SizedBox.shrink();
-    }
-  }
-
-  Future<void> _handleRefresh() async {
-    try {
-      await widget.controller.refreshData();
-      if (!mounted) {
-        return;
-      }
-
-      _showSnack('Fresh data loaded from the backend.');
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      _showSnack(_messageForError(error));
     }
   }
 

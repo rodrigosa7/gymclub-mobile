@@ -555,7 +555,6 @@ class _ExerciseCard extends StatelessWidget {
               isMutating: controller.isMutatingWorkout,
               onAddSet: () => controller.addSet(exercise),
               onLogSet: (weightKg, reps, set) {
-                print('[onLogSet] weightKg=$weightKg, reps=$reps, set.isComplete=${set.isComplete}');
                 try {
                   controller.logSet(
                     exercise: exercise,
@@ -573,17 +572,7 @@ class _ExerciseCard extends StatelessWidget {
                 }
               },
               onToggleSet: (set) {
-                print('[onToggleSet] set.id=${set.id}, set.isComplete=${set.isComplete}, set.reps=${set.reps}, set.weightKg=${set.weightKg}');
-                try {
-                  controller.toggleSetComplete(exercise: exercise, set: set);
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(e.toString().replaceFirst('StateError: ', '')),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
+                controller.toggleSetComplete(exercise: exercise, set: set);
               },
               onCycleSetType: (type, set) => controller.cycleSetType(
                 exercise: exercise,

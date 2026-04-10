@@ -185,16 +185,15 @@ class AppController extends ChangeNotifier {
     required double? weightKg,
     int? rir,
   }) {
-    print('[logSet] reps=$reps, weightKg=$weightKg');
     final workout = activeWorkout;
     if (workout == null) return;
 
-    // Validate: weight or reps must be set and > 0
+    // Validate: weight AND reps must be set and > 0
     final effectiveWeightKg = (weightKg != null && weightKg > 0) ? weightKg : null;
     final effectiveReps = (reps != null && reps > 0) ? reps : null;
 
-    if (effectiveWeightKg == null && effectiveReps == null) {
-      throw StateError('Enter weight or reps before marking set as complete.');
+    if (effectiveWeightKg == null || effectiveReps == null) {
+      throw StateError('Weight and reps must be set before marking set as complete.');
     }
 
     activeWorkout = _copyWorkoutWithModifiedExercise(workout, exercise.id, (ex) {
@@ -230,16 +229,8 @@ class AppController extends ChangeNotifier {
     required WorkoutExercise exercise,
     required WorkoutSet set,
   }) {
-    print('[toggleSetComplete] set.id=${set.id}, set.isComplete=${set.isComplete}, set.reps=${set.reps}, set.weightKg=${set.weightKg}');
     final workout = activeWorkout;
     if (workout == null) return;
-
-    // If trying to mark as complete, validate weight or reps is set and > 0
-    final hasValidWeight = set.weightKg != null && set.weightKg! > 0;
-    final hasValidReps = set.reps != null && set.reps! > 0;
-    if (!set.isComplete && !hasValidWeight && !hasValidReps) {
-      throw StateError('Weight or reps must be set before marking as complete.');
-    }
 
     activeWorkout = _copyWorkoutWithModifiedExercise(workout, exercise.id, (ex) {
       return WorkoutExercise(

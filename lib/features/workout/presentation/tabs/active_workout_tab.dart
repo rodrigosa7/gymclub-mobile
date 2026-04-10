@@ -206,11 +206,17 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab>
                   return AnimatedBuilder(
                     animation: animation,
                     builder: (context, child) {
-                      final isDragging = _draggingIndex == index;
-                      return Material(
-                        elevation: isDragging ? 8 : 4,
-                        borderRadius: BorderRadius.circular(16),
-                        child: child,
+                      final scale = Tween<double>(begin: 1.0, end: 1.05).animate(
+                        CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                      ).value;
+                      return Transform.scale(
+                        scale: scale,
+                        child: Material(
+                          elevation: 8,
+                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.transparent,
+                          child: child,
+                        ),
                       );
                     },
                   );
@@ -408,27 +414,6 @@ class _MinimizedExerciseCard extends StatelessWidget {
                 child: Icon(
                   Icons.drag_handle_rounded,
                   color: isDragging ? const Color(0xFFB45309) : const Color(0xFFB0A898),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 28,
-                height: 28,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isDragging ? const Color(0xFFFEF3C7) : const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(14),
-                  border: isDragging
-                      ? Border.all(color: const Color(0xFFB45309), width: 2)
-                      : null,
-                ),
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: isDragging ? const Color(0xFFB45309) : const Color(0xFF6C655D),
-                  ),
                 ),
               ),
               const SizedBox(width: 12),

@@ -46,6 +46,140 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
     setState(() => _isReorderMode = true);
   }
 
+  void _showFinishWorkoutSheet(BuildContext context) {
+    final workout = widget.controller.activeWorkout;
+    if (workout == null) return;
+
+    final nameController = TextEditingController(text: workout.name);
+    final notesController = TextEditingController(text: workout.notes);
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8D9C8),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Finish Workout',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Duration: ${formatDuration(workout.elapsed)}',
+              style: const TextStyle(
+                fontSize: 15,
+                color: Color(0xFF6C655D),
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Workout name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Notes (optional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _confirmDiscardWorkout(context);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Discard'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      setState(() => _isReorderMode = false);
+                      widget.controller.updateWorkoutName(nameController.text.trim());
+                      widget.onCompleteWorkout();
+                    },
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Save Workout'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDiscardWorkout(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard workout?'),
+        content: const Text('This will delete the workout and all logged sets.'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              widget.controller.discardActiveWorkout();
+              setState(() => _isReorderMode = false);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final workout = widget.controller.activeWorkout;
@@ -94,7 +228,7 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                       ),
                       const SizedBox(width: 16),
                       GestureDetector(
-                        onTap: () => setState(() => _isReorderMode = false),
+                        onTap: () => _showFinishWorkoutSheet(context),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                           decoration: BoxDecoration(

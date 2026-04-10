@@ -399,6 +399,29 @@ class AppController extends ChangeNotifier {
     );
   }
 
+  void updateWorkoutName(String name) {
+    final workout = activeWorkout;
+    if (workout == null) return;
+
+    activeWorkout = WorkoutSession(
+      id: workout.id,
+      userId: workout.userId,
+      routineId: workout.routineId,
+      name: name,
+      notes: workout.notes,
+      status: workout.status,
+      startedAt: workout.startedAt,
+      completedAt: workout.completedAt,
+      exercises: workout.exercises,
+    );
+    notifyListeners();
+  }
+
+  void discardActiveWorkout() {
+    activeWorkout = null;
+    notifyListeners();
+  }
+
   void updateExerciseSearch(String value) {
     exerciseSearch = value;
     notifyListeners();

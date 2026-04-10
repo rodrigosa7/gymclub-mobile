@@ -404,25 +404,25 @@ class _MinimizedExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: <Widget>[
-          ReorderableDragStartListener(
-            index: index,
-            child: const Icon(Icons.drag_handle_rounded, color: Color(0xFFB0A898)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              exerciseName,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+    return ReorderableDragStartListener(
+      index: index,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: <Widget>[
+            const Icon(Icons.drag_handle_rounded, color: Color(0xFFB0A898)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                exerciseName,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -190,9 +190,9 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _handleCompleteWorkout() async {
+  Future<void> _handleCompleteWorkout(DateTime? completedAt) async {
     try {
-      await widget.controller.completeActiveWorkout();
+      await widget.controller.completeActiveWorkout(completedAt: completedAt);
       if (!mounted) {
         return;
       }

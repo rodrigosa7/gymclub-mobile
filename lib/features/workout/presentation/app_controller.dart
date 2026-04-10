@@ -188,6 +188,14 @@ class AppController extends ChangeNotifier {
     final workout = activeWorkout;
     if (workout == null) return;
 
+    // Validate: weight or reps must be set and > 0
+    final effectiveWeightKg = (weightKg != null && weightKg > 0) ? weightKg : null;
+    final effectiveReps = (reps != null && reps > 0) ? reps : null;
+
+    if (effectiveWeightKg == null && effectiveReps == null) {
+      throw StateError('Enter weight or reps before marking set as complete.');
+    }
+
     activeWorkout = _copyWorkoutWithModifiedExercise(workout, exercise.id, (ex) {
       return WorkoutExercise(
         id: ex.id,
@@ -200,14 +208,14 @@ class AppController extends ChangeNotifier {
             return WorkoutSet(
               id: s.id,
               type: s.type,
-              reps: reps,
-              weightKg: weightKg,
+              reps: effectiveReps,
+              weightKg: effectiveWeightKg,
               durationSeconds: s.durationSeconds,
               distanceMeters: s.distanceMeters,
               rir: rir ?? s.rir,
-              isComplete: reps != null || weightKg != null,
+              isComplete: effectiveReps != null || effectiveWeightKg != null,
               createdAt: s.createdAt,
-              completedAt: (reps != null || weightKg != null) ? DateTime.now() : s.completedAt,
+              completedAt: (effectiveReps != null || effectiveWeightKg != null) ? DateTime.now() : s.completedAt,
             );
           }
           return s;
@@ -223,6 +231,13 @@ class AppController extends ChangeNotifier {
   }) {
     final workout = activeWorkout;
     if (workout == null) return;
+
+    // If trying to mark as complete, validate weight or reps is set and > 0
+    final hasValidWeight = set.weightKg != null && set.weightKg! > 0;
+    final hasValidReps = set.reps != null && set.reps! > 0;
+    if (!set.isComplete && !hasValidWeight && !hasValidReps) {
+      throw StateError('Weight or reps must be set before marking as complete.');
+    }
 
     activeWorkout = _copyWorkoutWithModifiedExercise(workout, exercise.id, (ex) {
       return WorkoutExercise(
@@ -362,7 +377,7 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> completeActiveWorkout() async {
+  Future<void> completeActiveWorkout({DateTime? completedAt}) async {
     final workout = activeWorkout;
     if (workout == null) return;
 
@@ -370,7 +385,7 @@ class AppController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final now = DateTime.now();
+      final effectiveCompletedAt = completedAt ?? DateTime.now();
       final exercisePayloads = workout.exercises.map((ex) {
         return <String, dynamic>{
           'exerciseId': ex.exerciseId,
@@ -394,7 +409,7 @@ class AppController extends ChangeNotifier {
         name: workout.name,
         notes: workout.notes,
         startedAt: workout.startedAt,
-        completedAt: now,
+        completedAt: effectiveCompletedAt,
         exercises: exercisePayloads,
       );
 

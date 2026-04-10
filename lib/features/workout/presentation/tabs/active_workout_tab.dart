@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -17,7 +18,7 @@ class ActiveWorkoutTab extends StatefulWidget {
   });
 
   final AppController controller;
-  final Future<void> Function() onCompleteWorkout;
+  final Future<void> Function(DateTime? completedAt) onCompleteWorkout;
   final VoidCallback onOpenRoutines;
 
   @override
@@ -26,6 +27,7 @@ class ActiveWorkoutTab extends StatefulWidget {
 
 class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
   bool _isReorderMode = false;
+  DateTime? _editedCompletedAt;
 
   void _startTimer() {
     Future.delayed(const Duration(seconds: 1), () {
@@ -47,6 +49,24 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
   }
 
   void showFinishWorkoutSheet() {
+    final workout = widget.controller.activeWorkout;
+    if (workout == null) return;
+
+    // Validate: check if at least one set is completed
+    final hasCompletedSets = workout.exercises.any(
+      (ex) => ex.sets.any((s) => s.isComplete),
+    );
+
+    if (!hasCompletedSets) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Complete at least one set before saving.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     _showFinishWorkoutSheet(context);
   }
 
@@ -94,12 +114,32 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Duration: ${formatDuration(workout.elapsed)}',
-              style: const TextStyle(
-                fontSize: 15,
-                color: Color(0xFF6C655D),
-              ),
+            StatefulBuilder(
+              builder: (context, setSheetState) {
+                return GestureDetector(
+                  onTap: () {
+                    _showDurationPicker(context, workout.elapsed, workout.startedAt);
+                    setSheetState(() {});
+                  },
+                  child: Row(
+                    children: <Widget>[
+                      Text(
+                        'Duration: ${formatDuration(_editedCompletedAt != null ? _editedCompletedAt!.difference(workout.startedAt) : workout.elapsed)}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF6C655D),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.edit_outlined,
+                        size: 16,
+                        color: Color(0xFFB0A898),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 24),
             TextField(
@@ -142,7 +182,7 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                     onPressed: () {
                       Navigator.pop(sheetCtx);
                       widget.controller.updateWorkoutName(nameController.text.trim());
-                      widget.onCompleteWorkout();
+                      widget.onCompleteWorkout(_editedCompletedAt);
                     },
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -178,6 +218,57 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
             child: const Text('Discard'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showDurationPicker(BuildContext ctx, Duration currentDuration, DateTime startedAt) {
+    int minutes = currentDuration.inMinutes;
+    int seconds = currentDuration.inSeconds % 60;
+
+    showModalBottomSheet<void>(
+      context: ctx,
+      builder: (sheetCtx) => SafeArea(
+        child: SizedBox(
+          height: 300,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(sheetCtx),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(sheetCtx);
+                        setState(() {
+                          _editedCompletedAt = startedAt.add(
+                            Duration(minutes: minutes, seconds: seconds),
+                          );
+                        });
+                      },
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: CupertinoTimerPicker(
+                  mode: CupertinoTimerPickerMode.ms,
+                  initialTimerDuration: currentDuration,
+                  onTimerDurationChanged: (Duration newDuration) {
+                    minutes = newDuration.inMinutes;
+                    seconds = newDuration.inSeconds % 60;
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -275,7 +366,7 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                     FilledButton.icon(
                       onPressed: widget.controller.isMutatingWorkout || !canComplete
                           ? null
-                          : widget.onCompleteWorkout,
+                          : () => showFinishWorkoutSheet(),
                       icon: const Icon(Icons.check_circle_outline_rounded),
                       label: const Text('Complete workout'),
                     ),
@@ -433,16 +524,35 @@ class _ExerciseCard extends StatelessWidget {
               exercise: exercise,
               isMutating: controller.isMutatingWorkout,
               onAddSet: () => controller.addSet(exercise),
-              onLogSet: (weightKg, reps, set) => controller.logSet(
-                exercise: exercise,
-                set: set,
-                reps: reps,
-                weightKg: weightKg,
-              ),
-              onToggleSet: (set) => controller.toggleSetComplete(
-                exercise: exercise,
-                set: set,
-              ),
+              onLogSet: (weightKg, reps, set) {
+                try {
+                  controller.logSet(
+                    exercise: exercise,
+                    set: set,
+                    reps: reps,
+                    weightKg: weightKg,
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString().replaceFirst('StateError: ', '')),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              onToggleSet: (set) {
+                try {
+                  controller.toggleSetComplete(exercise: exercise, set: set);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString().replaceFirst('StateError: ', '')),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
               onCycleSetType: (type, set) => controller.cycleSetType(
                 exercise: exercise,
                 set: set,

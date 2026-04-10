@@ -60,6 +60,7 @@ class SetTable extends StatelessWidget {
     required this.onToggleSet,
     required this.onCycleSetType,
     required this.onRemoveSet,
+    this.onToggleError,
   });
 
   final WorkoutExercise exercise;
@@ -69,6 +70,7 @@ class SetTable extends StatelessWidget {
   final void Function(WorkoutSet set) onToggleSet;
   final void Function(String type, WorkoutSet set) onCycleSetType;
   final void Function(WorkoutSet set) onRemoveSet;
+  final VoidCallback? onToggleError;
 
   @override
   Widget build(BuildContext context) {
@@ -76,17 +78,7 @@ class SetTable extends StatelessWidget {
       children: <Widget>[
         _TableHeader(),
         const SizedBox(height: 4),
-        ...exercise.sets.asMap().entries.map(
-              (entry) => _SetRow(
-                index: entry.key + 1,
-                set: entry.value,
-                isMutating: isMutating,
-                onLog: (weight, reps) => onLogSet(weight, reps, entry.value),
-                onToggle: () => onToggleSet(entry.value),
-                onCycleType: (type) => onCycleSetType(type, entry.value),
-                onRemove: () => onRemoveSet(entry.value),
-              ),
-            ),
+        ..._buildSetRows(),
         Padding(
           padding: const EdgeInsets.only(top: 6),
           child: TextButton.icon(
@@ -97,6 +89,26 @@ class SetTable extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  List<Widget> _buildSetRows() {
+    int workingSetNumber = 1;
+    return exercise.sets.asMap().entries.map((entry) {
+      final set = entry.value;
+      final isWorkingSet = set.type == 'working' || set.type.isEmpty;
+      final displayNumber = isWorkingSet ? workingSetNumber++ : null;
+
+      return _SetRow(
+        index: displayNumber,
+        set: set,
+        isMutating: isMutating,
+        onLog: (weight, reps) => onLogSet(weight, reps, set),
+        onToggle: () => onToggleSet(set),
+        onCycleType: (type) => onCycleSetType(type, set),
+        onRemove: () => onRemoveSet(set),
+        onToggleError: onToggleError,
+      );
+    }).toList();
   }
 }
 
@@ -163,15 +175,17 @@ class _SetRow extends StatefulWidget {
     required this.onToggle,
     required this.onCycleType,
     required this.onRemove,
+    this.onToggleError,
   });
 
-  final int index;
+  final int? index;
   final WorkoutSet set;
   final bool isMutating;
   final void Function(double?, int?) onLog;
   final VoidCallback onToggle;
   final void Function(String) onCycleType;
   final VoidCallback onRemove;
+  final VoidCallback? onToggleError;
 
   @override
   State<_SetRow> createState() => _SetRowState();
@@ -336,7 +350,13 @@ class _SetRowState extends State<_SetRow> {
             height: 36,
             child: Checkbox(
               value: widget.set.isComplete,
-              onChanged: widget.isMutating ? null : (_) => widget.onToggle(),
+              onChanged: widget.isMutating ? null : (_) {
+                try {
+                  widget.onToggle();
+                } catch (e) {
+                  widget.onToggleError?.call();
+                }
+              },
               activeColor: const Color(0xFF1F7A4D),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),

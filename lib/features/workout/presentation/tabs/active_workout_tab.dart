@@ -188,7 +188,6 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                     onPressed: () {
                       Navigator.pop(sheetCtx);
                       _confirmDiscardWorkout(ctx);
-                      _resumeTimer();
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
@@ -206,7 +205,6 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                       Navigator.pop(sheetCtx);
                       widget.controller.updateWorkoutName(nameController.text.trim());
                       widget.onCompleteWorkout(_editedCompletedAt);
-                      _resumeTimer();
                     },
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -219,7 +217,14 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
           ],
         ),
       ),
-    );
+    ).whenComplete(() {
+      _resumeTimer();
+      // Clear edited duration so next open starts fresh with current timer value
+      setState(() {
+        _editedCompletedAt = null;
+        _frozenDuration = null;
+      });
+    });
   }
 
   void _confirmDiscardWorkout(BuildContext ctx) {

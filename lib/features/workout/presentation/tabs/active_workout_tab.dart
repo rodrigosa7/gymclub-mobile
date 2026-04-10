@@ -46,10 +46,6 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
     setState(() => _isReorderMode = true);
   }
 
-  void _exitReorderMode() {
-    setState(() => _isReorderMode = false);
-  }
-
   @override
   Widget build(BuildContext context) {
     final workout = widget.controller.activeWorkout;
@@ -196,6 +192,10 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                   onReorder: (oldIndex, newIndex) {
                     if (newIndex > oldIndex) newIndex--;
                     widget.controller.reorderExercise(oldIndex, newIndex);
+                    // Exit reorder mode after drop
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) setState(() => _isReorderMode = false);
+                    });
                   },
                   proxyDecorator: (child, index, animation) {
                     return AnimatedBuilder(

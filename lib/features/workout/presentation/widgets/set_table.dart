@@ -101,16 +101,55 @@ class SetTable extends StatelessWidget {
 }
 
 class _TableHeader extends StatelessWidget {
+  const _TableHeader();
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        const SizedBox(width: 34),
+        // SET column - centered over the 34px circle
+        SizedBox(
+          width: 34,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'SET',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFB0A898),
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: 34,
+                height: 20,
+                alignment: Alignment.center,
+                child: const Text(
+                  '1',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFB0A898),
+                    height: 1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(width: 8),
+        // WEIGHT column - centered in its Expanded space
         const Expanded(child: _ColLabel('WEIGHT')),
         const SizedBox(width: 8),
+        // REPS column - centered in its Expanded space
         const Expanded(child: _ColLabel('REPS')),
         const SizedBox(width: 8),
+        // Checkbox column
         const SizedBox(width: 36),
       ],
     );

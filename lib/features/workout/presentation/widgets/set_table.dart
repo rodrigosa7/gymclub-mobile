@@ -105,7 +105,7 @@ class _TableHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        const SizedBox(width: 42),
+        const SizedBox(width: 34),
         const SizedBox(width: 8),
         const Expanded(child: _ColLabel('WEIGHT')),
         const SizedBox(width: 8),

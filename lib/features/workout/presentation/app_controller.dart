@@ -289,6 +289,40 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void reorderExercise(int oldIndex, int newIndex) {
+    final workout = activeWorkout;
+    if (workout == null) return;
+
+    final exercises = List<WorkoutExercise>.from(workout.exercises);
+    final item = exercises.removeAt(oldIndex);
+    exercises.insert(newIndex, item);
+
+    // Update order field for each exercise
+    final reorderedExercises = exercises.asMap().entries.map((entry) {
+      return WorkoutExercise(
+        id: entry.value.id,
+        exerciseId: entry.value.exerciseId,
+        order: entry.key + 1,
+        notes: entry.value.notes,
+        restSeconds: entry.value.restSeconds,
+        sets: entry.value.sets,
+      );
+    }).toList();
+
+    activeWorkout = WorkoutSession(
+      id: workout.id,
+      userId: workout.userId,
+      routineId: workout.routineId,
+      name: workout.name,
+      notes: workout.notes,
+      status: workout.status,
+      startedAt: workout.startedAt,
+      completedAt: workout.completedAt,
+      exercises: reorderedExercises,
+    );
+    notifyListeners();
+  }
+
   Future<void> completeActiveWorkout() async {
     final workout = activeWorkout;
     if (workout == null) return;

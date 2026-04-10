@@ -93,114 +93,9 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
             ),
           ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1F2937),
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      workout.name,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${workout.exercises.length} exercises - $completedSets completed sets',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: const Color(0xFFD1D5DB),
-                          ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Started ${formatDateTime(workout.startedAt)} - ${formatDuration(workout.elapsed)}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFF9CA3AF),
-                          ),
-                    ),
-                    if (workout.notes.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 10),
-                      Text(
-                        workout.notes,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: const Color(0xFFE5E7EB),
-                            ),
-                      ),
-                    ],
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: widget.controller.isMutatingWorkout || !canComplete
-                                ? null
-                                : widget.onCompleteWorkout,
-                            icon: const Icon(Icons.check_circle_outline_rounded),
-                            label: const Text('Complete workout'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          onPressed: () => setState(() => _isReorderMode = true),
-                          tooltip: 'Reorder exercises',
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.white.withAlpha(25),
-                          ),
-                          icon: const Icon(Icons.reorder_rounded, color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (!canComplete) ...<Widget>[
-                const SizedBox(height: 14),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          'Workout still has unfinished items',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Log or remove every open set, and remove exercises with no logged sets before completing.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: const Color(0xFF6C655D),
-                              ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: <Widget>[
-                            InfoPill(label: '$openSets open sets'),
-                            InfoPill(label: '$emptyExercises empty exercises'),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 18),
-              if (_isReorderMode)
-                ReorderableListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+          child: _isReorderMode
+              ? ReorderableListView.builder(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
                   itemCount: workout.exercises.length,
                   onReorder: (oldIndex, newIndex) {
                     if (newIndex > oldIndex) newIndex--;
@@ -223,91 +118,210 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                     );
                   },
                 )
-              else
-                ...workout.exercises.map<Widget>(
-                  (exercise) {
-                    return Card(
-                      key: ValueKey(exercise.id),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Row(
-                              children: <Widget>[
-                                const Padding(
-                                  padding: EdgeInsets.only(right: 12),
-                                  child: Icon(
-                                    Icons.drag_handle_rounded,
-                                    color: Color(0xFFB0A898),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      Text(
-                                        widget.controller.exerciseName(exercise.exerciseId),
-                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${exercise.sets.length} sets - ${exercise.restSeconds}s rest',
-                                        style: Theme.of(context).textTheme.bodySmall,
-                                      ),
-                                      if (exercise.notes.isNotEmpty) ...<Widget>[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          exercise.notes,
-                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                color: const Color(0xFF6C655D),
-                                              ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            SetTable(
-                              exercise: exercise,
-                              isMutating: widget.controller.isMutatingWorkout,
-                              onAddSet: () => widget.controller.addSet(exercise),
-                              onLogSet: (weightKg, reps, set) =>
-                                  widget.controller.logSet(
-                                    exercise: exercise,
-                                    set: set,
-                                    reps: reps,
-                                    weightKg: weightKg,
-                                  ),
-                              onToggleSet: (set) =>
-                                  widget.controller.toggleSetComplete(
-                                    exercise: exercise,
-                                    set: set,
-                                  ),
-                              onCycleSetType: (type, set) =>
-                                  widget.controller.cycleSetType(
-                                    exercise: exercise,
-                                    set: set,
-                                    newType: type,
-                                  ),
-                              onRemoveSet: (set) =>
-                                  widget.controller.removeSet(
-                                    exercise: exercise,
-                                    set: set,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+              : _buildExerciseList(
+                  workout,
+                  canComplete,
+                  completedSets,
+                  openSets,
+                  emptyExercises,
                 ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExerciseList(
+    WorkoutSession workout,
+    bool canComplete,
+    int completedSets,
+    int openSets,
+    int emptyExercises,
+  ) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1F2937),
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                workout.name,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${workout.exercises.length} exercises - $completedSets completed sets',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: const Color(0xFFD1D5DB),
+                    ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Started ${formatDateTime(workout.startedAt)} - ${formatDuration(workout.elapsed)}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFF9CA3AF),
+                    ),
+              ),
+              if (workout.notes.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 10),
+                Text(
+                  workout.notes,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFFE5E7EB),
+                      ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: widget.controller.isMutatingWorkout || !canComplete
+                          ? null
+                          : widget.onCompleteWorkout,
+                      icon: const Icon(Icons.check_circle_outline_rounded),
+                      label: const Text('Complete workout'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  IconButton(
+                    onPressed: () => setState(() => _isReorderMode = true),
+                    tooltip: 'Reorder exercises',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withAlpha(25),
+                    ),
+                    icon: const Icon(Icons.reorder_rounded, color: Colors.white),
+                  ),
+                ],
+              ),
             ],
           ),
+        ),
+        if (!canComplete) ...<Widget>[
+          const SizedBox(height: 14),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Workout still has unfinished items',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Log or remove every open set, and remove exercises with no logged sets before completing.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF6C655D),
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: <Widget>[
+                      InfoPill(label: '$openSets open sets'),
+                      InfoPill(label: '$emptyExercises empty exercises'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 18),
+        ...workout.exercises.map<Widget>(
+          (exercise) {
+            return Card(
+              key: ValueKey(exercise.id),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        const Padding(
+                          padding: EdgeInsets.only(right: 12),
+                          child: Icon(
+                            Icons.drag_handle_rounded,
+                            color: Color(0xFFB0A898),
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                widget.controller.exerciseName(exercise.exerciseId),
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${exercise.sets.length} sets - ${exercise.restSeconds}s rest',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              if (exercise.notes.isNotEmpty) ...<Widget>[
+                                const SizedBox(height: 6),
+                                Text(
+                                  exercise.notes,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: const Color(0xFF6C655D),
+                                      ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SetTable(
+                      exercise: exercise,
+                      isMutating: widget.controller.isMutatingWorkout,
+                      onAddSet: () => widget.controller.addSet(exercise),
+                      onLogSet: (weightKg, reps, set) =>
+                          widget.controller.logSet(
+                            exercise: exercise,
+                            set: set,
+                            reps: reps,
+                            weightKg: weightKg,
+                          ),
+                      onToggleSet: (set) =>
+                          widget.controller.toggleSetComplete(
+                            exercise: exercise,
+                            set: set,
+                          ),
+                      onCycleSetType: (type, set) =>
+                          widget.controller.cycleSetType(
+                            exercise: exercise,
+                            set: set,
+                            newType: type,
+                          ),
+                      onRemoveSet: (set) =>
+                          widget.controller.removeSet(
+                            exercise: exercise,
+                            set: set,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ],
     );

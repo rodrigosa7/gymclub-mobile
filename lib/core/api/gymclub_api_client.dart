@@ -2,7 +2,11 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import 'models.dart';
+import '../../features/workout/data/models/user_profile.dart';
+import '../../features/workout/data/models/exercise.dart';
+import '../../features/workout/data/models/routine.dart';
+import '../../features/workout/data/models/workout_session.dart';
+import '../../features/workout/data/models/analytics_overview.dart';
 
 class ApiException implements Exception {
   ApiException(this.message, this.statusCode);
@@ -70,8 +74,8 @@ class GymClubApiClient {
   Future<WorkoutSession> addWorkoutSet({
     required String workoutId,
     required String workoutExerciseId,
-    required int? reps,
-    required double? weightKg,
+    int? reps,
+    double? weightKg,
     int? rir,
   }) async {
     final payload = await _post(
@@ -80,7 +84,6 @@ class GymClubApiClient {
         'reps': reps,
         'weightKg': weightKg,
         'rir': rir,
-        'isComplete': true,
       },
     );
 
@@ -94,15 +97,23 @@ class GymClubApiClient {
     required int? reps,
     required double? weightKg,
     int? rir,
+    bool? isComplete,
+    String? type,
   }) async {
+    final data = <String, dynamic>{
+      'reps': reps,
+      'weightKg': weightKg,
+      'rir': rir,
+    };
+    if (isComplete != null) {
+      data['isComplete'] = isComplete;
+    }
+    if (type != null) {
+      data['type'] = type;
+    }
     final payload = await _patch(
       '/api/workouts/$workoutId/exercises/$workoutExerciseId/sets/$setId',
-      <String, dynamic>{
-        'reps': reps,
-        'weightKg': weightKg,
-        'rir': rir,
-        'isComplete': true,
-      },
+      data,
     );
 
     return WorkoutSession.fromJson(Map<String, dynamic>.from(payload as Map));
@@ -136,6 +147,24 @@ class GymClubApiClient {
     return WorkoutSession.fromJson(Map<String, dynamic>.from(payload as Map));
   }
 
+  Future<WorkoutSession> syncWorkout({
+    required String workoutId,
+    required String name,
+    required String notes,
+    required List<Map<String, dynamic>> exercises,
+  }) async {
+    final payload = await _put(
+      '/api/workouts/$workoutId',
+      <String, dynamic>{
+        'name': name,
+        'notes': notes,
+        'exercises': exercises,
+      },
+    );
+
+    return WorkoutSession.fromJson(Map<String, dynamic>.from(payload as Map));
+  }
+
   Future<Object?> _get(String path) async {
     final response = await _client.get(_uri(path));
     return _decodeResponse(response);
@@ -163,6 +192,15 @@ class GymClubApiClient {
     final response = await _client.delete(
       _uri(path),
       headers: _headers,
+    );
+    return _decodeResponse(response);
+  }
+
+  Future<Object?> _put(String path, Map<String, dynamic> body) async {
+    final response = await _client.put(
+      _uri(path),
+      headers: _headers,
+      body: jsonEncode(body),
     );
     return _decodeResponse(response);
   }

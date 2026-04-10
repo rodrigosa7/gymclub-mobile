@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'src/app_controller.dart';
-import 'src/api_client.dart';
-import 'src/home_page.dart';
+import 'core/api/gymclub_api_client.dart';
+import 'features/workout/presentation/app_controller.dart';
+import 'features/workout/presentation/home_page.dart';
 
 class GymClubTestApp extends StatefulWidget {
   const GymClubTestApp({super.key, required this.apiBaseUrl});

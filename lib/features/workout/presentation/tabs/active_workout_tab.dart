@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/utils/format_utils.dart';
 import '../app_controller.dart';
@@ -40,6 +41,15 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
     _startTimer();
   }
 
+  void _enterReorderMode() {
+    HapticFeedback.mediumImpact();
+    setState(() => _isReorderMode = true);
+  }
+
+  void _exitReorderMode() {
+    setState(() => _isReorderMode = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final workout = widget.controller.activeWorkout;
@@ -70,25 +80,18 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
       children: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          height: _isReorderMode ? 52 : 0,
+          height: _isReorderMode ? 48 : 0,
           child: _isReorderMode
               ? Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   color: const Color(0xFF1F2937),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.drag_indicator, color: Colors.white, size: 20),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Drag to reorder',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () => setState(() => _isReorderMode = false),
-                        child: const Text('Done', style: TextStyle(color: Color(0xFF60A5FA))),
-                      ),
-                    ],
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Release to finish reordering',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
                   ),
                 )
               : const SizedBox.shrink(),
@@ -137,32 +140,12 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                       ),
                     ],
                     const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: widget.controller.isMutatingWorkout || !canComplete
-                                ? null
-                                : widget.onCompleteWorkout,
-                            icon: const Icon(Icons.check_circle_outline_rounded),
-                            label: const Text('Complete workout'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          onPressed: () => setState(() => _isReorderMode = !_isReorderMode),
-                          tooltip: 'Reorder exercises',
-                          style: IconButton.styleFrom(
-                            backgroundColor: _isReorderMode
-                                ? const Color(0xFF60A5FA).withAlpha(50)
-                                : Colors.white.withAlpha(25),
-                          ),
-                          icon: Icon(
-                            Icons.reorder_rounded,
-                            color: _isReorderMode ? Colors.white : Colors.white70,
-                          ),
-                        ),
-                      ],
+                    FilledButton.icon(
+                      onPressed: widget.controller.isMutatingWorkout || !canComplete
+                          ? null
+                          : widget.onCompleteWorkout,
+                      icon: const Icon(Icons.check_circle_outline_rounded),
+                      label: const Text('Complete workout'),
                     ),
                   ],
                 ),
@@ -203,47 +186,52 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                 ),
               ],
               const SizedBox(height: 18),
-              ReorderableListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                buildDefaultDragHandles: false,
-                itemCount: workout.exercises.length,
-                onReorder: (oldIndex, newIndex) {
-                  if (newIndex > oldIndex) newIndex--;
-                  widget.controller.reorderExercise(oldIndex, newIndex);
-                },
-                proxyDecorator: (child, index, animation) {
-                  return AnimatedBuilder(
-                    animation: animation,
-                    builder: (context, child) {
-                      final scale = 1.0 + (CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOut,
-                      ).value * 0.05);
-                      return Transform.scale(
-                        scale: scale,
-                        child: Material(
-                          elevation: 6,
-                          borderRadius: BorderRadius.circular(16),
-                          color: Colors.white,
-                          child: child,
-                        ),
+              GestureDetector(
+                onLongPress: _isReorderMode ? null : _enterReorderMode,
+                child: ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  buildDefaultDragHandles: false,
+                  itemCount: workout.exercises.length,
+                  onReorder: (oldIndex, newIndex) {
+                    if (newIndex > oldIndex) newIndex--;
+                    widget.controller.reorderExercise(oldIndex, newIndex);
+                  },
+                  proxyDecorator: (child, index, animation) {
+                    return AnimatedBuilder(
+                      animation: animation,
+                      builder: (context, child) {
+                        final scale = Curves.easeInOut.transform(animation.value);
+                        return Transform.scale(
+                          scale: 1.0 + (scale * 0.03),
+                          child: Material(
+                            elevation: 4 + (scale * 4),
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.white,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: child,
+                    );
+                  },
+                  itemBuilder: (context, index) {
+                    final exercise = workout.exercises[index];
+                    if (_isReorderMode) {
+                      return _ReorderableExerciseTile(
+                        key: ValueKey(exercise.id),
+                        exerciseName: widget.controller.exerciseName(exercise.exerciseId),
+                        index: index,
                       );
-                    },
-                    child: child,
-                  );
-                },
-                itemBuilder: (context, index) {
-                  final exercise = workout.exercises[index];
-                  return _ExerciseCard(
-                    key: ValueKey(exercise.id),
-                    exercise: exercise,
-                    index: index,
-                    controller: widget.controller,
-                    isReorderMode: _isReorderMode,
-                    onToggleReorderMode: () => setState(() => _isReorderMode = !_isReorderMode),
-                  );
-                },
+                    }
+                    return _ExerciseCard(
+                      key: ValueKey(exercise.id),
+                      exercise: exercise,
+                      index: index,
+                      controller: widget.controller,
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -259,141 +247,86 @@ class _ExerciseCard extends StatelessWidget {
     required this.exercise,
     required this.index,
     required this.controller,
-    required this.isReorderMode,
-    required this.onToggleReorderMode,
   });
 
   final WorkoutExercise exercise;
   final int index;
   final AppController controller;
-  final bool isReorderMode;
-  final VoidCallback onToggleReorderMode;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: EdgeInsets.only(bottom: isReorderMode ? 8 : 0),
-      child: Card(
-        margin: EdgeInsets.only(bottom: isReorderMode ? 0 : 12),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 150),
-          child: isReorderMode
-              ? _MinimizedExerciseCard(
-                  key: const ValueKey('mini'),
-                  exerciseName: controller.exerciseName(exercise.exerciseId),
-                  index: index,
-                )
-              : _ExpandedExerciseCard(
-                  key: const ValueKey('expanded'),
-                  exercise: exercise,
-                  index: index,
-                  controller: controller,
-                  onToggleReorderMode: onToggleReorderMode,
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        controller.exerciseName(exercise.exerciseId),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${exercise.sets.length} sets - ${exercise.restSeconds}s rest',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      if (exercise.notes.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 6),
+                        Text(
+                          exercise.notes,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: const Color(0xFF6C655D),
+                              ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SetTable(
+              exercise: exercise,
+              isMutating: controller.isMutatingWorkout,
+              onAddSet: () => controller.addSet(exercise),
+              onLogSet: (weightKg, reps, set) => controller.logSet(
+                exercise: exercise,
+                set: set,
+                reps: reps,
+                weightKg: weightKg,
+              ),
+              onToggleSet: (set) => controller.toggleSetComplete(
+                exercise: exercise,
+                set: set,
+              ),
+              onCycleSetType: (type, set) => controller.cycleSetType(
+                exercise: exercise,
+                set: set,
+                newType: type,
+              ),
+              onRemoveSet: (set) => controller.removeSet(
+                exercise: exercise,
+                set: set,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _ExpandedExerciseCard extends StatelessWidget {
-  const _ExpandedExerciseCard({
-    super.key,
-    required this.exercise,
-    required this.index,
-    required this.controller,
-    required this.onToggleReorderMode,
-  });
-
-  final WorkoutExercise exercise;
-  final int index;
-  final AppController controller;
-  final VoidCallback onToggleReorderMode;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              ReorderableDragStartListener(
-                index: index,
-                child: const Padding(
-                  padding: EdgeInsets.only(right: 12),
-                  child: Icon(Icons.drag_handle_rounded, color: Color(0xFFB0A898)),
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      controller.exerciseName(exercise.exerciseId),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${exercise.sets.length} sets - ${exercise.restSeconds}s rest',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    if (exercise.notes.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 6),
-                      Text(
-                        exercise.notes,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: const Color(0xFF6C655D),
-                            ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.reorder_rounded, color: Color(0xFFB0A898)),
-                onPressed: onToggleReorderMode,
-                tooltip: 'Reorder',
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SetTable(
-            exercise: exercise,
-            isMutating: controller.isMutatingWorkout,
-            onAddSet: () => controller.addSet(exercise),
-            onLogSet: (weightKg, reps, set) => controller.logSet(
-              exercise: exercise,
-              set: set,
-              reps: reps,
-              weightKg: weightKg,
-            ),
-            onToggleSet: (set) => controller.toggleSetComplete(
-              exercise: exercise,
-              set: set,
-            ),
-            onCycleSetType: (type, set) => controller.cycleSetType(
-              exercise: exercise,
-              set: set,
-              newType: type,
-            ),
-            onRemoveSet: (set) => controller.removeSet(
-              exercise: exercise,
-              set: set,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MinimizedExerciseCard extends StatelessWidget {
-  const _MinimizedExerciseCard({
+class _ReorderableExerciseTile extends StatelessWidget {
+  const _ReorderableExerciseTile({
     super.key,
     required this.exerciseName,
     required this.index,
@@ -407,20 +340,25 @@ class _MinimizedExerciseCard extends StatelessWidget {
     return ReorderableDragStartListener(
       index: index,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE8D9C8)),
+        ),
         child: Row(
           children: <Widget>[
-            const Icon(Icons.drag_handle_rounded, color: Color(0xFFB0A898)),
-            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 exerciseName,
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
+            const Icon(Icons.drag_handle_rounded, color: Color(0xFFB0A898)),
           ],
         ),
       ),

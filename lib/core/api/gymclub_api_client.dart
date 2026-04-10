@@ -165,6 +165,27 @@ class GymClubApiClient {
     return WorkoutSession.fromJson(Map<String, dynamic>.from(payload as Map));
   }
 
+  Future<WorkoutSession> saveCompletedWorkout({
+    required String name,
+    required String notes,
+    required DateTime startedAt,
+    required DateTime completedAt,
+    required List<Map<String, dynamic>> exercises,
+  }) async {
+    final payload = await _post(
+      '/api/workouts',
+      <String, dynamic>{
+        'name': name,
+        'notes': notes,
+        'startedAt': startedAt.toIso8601String(),
+        'completedAt': completedAt.toIso8601String(),
+        'exercises': exercises,
+      },
+    );
+
+    return WorkoutSession.fromJson(Map<String, dynamic>.from(payload as Map));
+  }
+
   Future<Object?> _get(String path) async {
     final response = await _client.get(_uri(path));
     return _decodeResponse(response);

@@ -50,7 +50,6 @@ class AppController extends ChangeNotifier {
         api.fetchCurrentUser(),
         api.fetchExercises(),
         api.fetchRoutines(),
-        api.fetchActiveWorkout(),
         api.fetchHistory(),
         api.fetchAnalyticsOverview(),
       ]);
@@ -58,9 +57,8 @@ class AppController extends ChangeNotifier {
       currentUser = results[0] as UserProfile;
       exercises = results[1] as List<Exercise>;
       routines = results[2] as List<Routine>;
-      activeWorkout = results[3] as WorkoutSession?;
-      history = results[4] as List<WorkoutSession>;
-      analytics = results[5] as AnalyticsOverview;
+      history = results[3] as List<WorkoutSession>;
+      analytics = results[4] as AnalyticsOverview;
     } catch (error) {
       errorMessage = _describeError(error);
     } finally {
@@ -77,16 +75,14 @@ class AppController extends ChangeNotifier {
       final results = await Future.wait<Object?>(<Future<Object?>>[
         api.fetchExercises(),
         api.fetchRoutines(),
-        api.fetchActiveWorkout(),
         api.fetchHistory(),
         api.fetchAnalyticsOverview(),
       ]);
 
       exercises = results[0] as List<Exercise>;
       routines = results[1] as List<Routine>;
-      activeWorkout = results[2] as WorkoutSession?;
-      history = results[3] as List<WorkoutSession>;
-      analytics = results[4] as AnalyticsOverview;
+      history = results[2] as List<WorkoutSession>;
+      analytics = results[3] as AnalyticsOverview;
       errorMessage = null;
     } catch (error) {
       errorMessage = _describeError(error);
@@ -97,15 +93,58 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  int _localWorkoutCounter = 0;
+  int _localExerciseCounter = 0;
+  int _localSetCounter = 0;
+
+  String _nextLocalWorkoutId() => 'local_w_${++_localWorkoutCounter}';
+  String _nextLocalExerciseId() => 'local_e_${++_localExerciseCounter}';
+  String _nextLocalSetId() => 'local_s_${++_localSetCounter}';
+
   Future<void> startWorkoutFromRoutine(String routineId) async {
     await _runWorkoutMutation(() async {
-      activeWorkout = await api.startWorkoutFromRoutine(routineId);
+      final routine = routines.firstWhere((r) => r.id == routineId);
+      final now = DateTime.now();
+
+      final exercises = routine.exercises.asMap().entries.map((entry) {
+        final template = entry.value;
+        return WorkoutExercise(
+          id: _nextLocalExerciseId(),
+          exerciseId: template.exerciseId,
+          order: entry.key + 1,
+          notes: template.notes,
+          restSeconds: template.restSeconds,
+          sets: template.sets.map((s) {
+            return WorkoutSet(
+              id: _nextLocalSetId(),
+              type: s.type,
+              reps: null,
+              weightKg: s.targetWeightKg,
+              durationSeconds: null,
+              distanceMeters: null,
+              rir: null,
+              isComplete: false,
+              createdAt: now,
+              completedAt: null,
+            );
+          }).toList(),
+        );
+      }).toList();
+
+      activeWorkout = WorkoutSession(
+        id: _nextLocalWorkoutId(),
+        userId: currentUser?.id ?? 'local',
+        routineId: routineId,
+        name: routine.name,
+        notes: '',
+        status: 'active',
+        startedAt: now,
+        completedAt: null,
+        exercises: exercises,
+      );
       errorMessage = null;
     });
   }
-
-  int _localSetCounter = 0;
-  String _nextLocalSetId() => 'local_${++_localSetCounter}';
 
   // --- Local-only set mutations ---
 
@@ -331,15 +370,14 @@ class AppController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final now = DateTime.now();
       final exercisePayloads = workout.exercises.map((ex) {
         return <String, dynamic>{
-          'id': ex.id,
           'exerciseId': ex.exerciseId,
           'notes': ex.notes,
           'restSeconds': ex.restSeconds,
           'sets': ex.sets.map((s) {
             return <String, dynamic>{
-              'id': s.id.startsWith('local_') ? null : s.id,
               'type': s.type,
               'reps': s.reps,
               'weightKg': s.weightKg,
@@ -352,20 +390,20 @@ class AppController extends ChangeNotifier {
         };
       }).toList();
 
-      await api.syncWorkout(
-        workoutId: workout.id,
+      final completedWorkout = await api.saveCompletedWorkout(
         name: workout.name,
         notes: workout.notes,
+        startedAt: workout.startedAt,
+        completedAt: now,
         exercises: exercisePayloads,
       );
 
       activeWorkout = null;
+      history = [completedWorkout, ...history];
       final results = await Future.wait<Object?>(<Future<Object?>>[
-        api.fetchHistory(),
         api.fetchAnalyticsOverview(),
       ]);
-      history = results[0] as List<WorkoutSession>;
-      analytics = results[1] as AnalyticsOverview;
+      analytics = results[0] as AnalyticsOverview;
       errorMessage = null;
     } catch (error) {
       errorMessage = _describeError(error);

@@ -108,38 +108,17 @@ class _TableHeader extends StatelessWidget {
     return Row(
       children: <Widget>[
         // SET column - centered over the 34px circle
-        SizedBox(
+        const SizedBox(
           width: 34,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'SET',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFB0A898),
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                width: 34,
-                height: 20,
-                alignment: Alignment.center,
-                child: const Text(
-                  '1',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFB0A898),
-                    height: 1,
-                  ),
-                ),
-              ),
-            ],
+          child: Text(
+            'SET',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFB0A898),
+              letterSpacing: 0.8,
+            ),
           ),
         ),
         const SizedBox(width: 8),

@@ -225,6 +225,7 @@ class _SetRowState extends State<_SetRow> {
   void _submit() {
     final weight = double.tryParse(_weightController.text.trim());
     final reps = int.tryParse(_repsController.text.trim());
+    print('[_submit] weight=$weight, reps=$reps, widget.set.isComplete=${widget.set.isComplete}');
     widget.onLog(weight, reps);
   }
 
@@ -351,6 +352,7 @@ class _SetRowState extends State<_SetRow> {
             child: Checkbox(
               value: widget.set.isComplete,
               onChanged: widget.isMutating ? null : (_) {
+                print('[_SetRow Checkbox onChanged] widget.set.id=${widget.set.id}, isComplete=${widget.set.isComplete}');
                 try {
                   widget.onToggle();
                 } catch (e) {

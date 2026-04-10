@@ -185,6 +185,7 @@ class AppController extends ChangeNotifier {
     required double? weightKg,
     int? rir,
   }) {
+    print('[logSet] reps=$reps, weightKg=$weightKg');
     final workout = activeWorkout;
     if (workout == null) return;
 
@@ -229,6 +230,7 @@ class AppController extends ChangeNotifier {
     required WorkoutExercise exercise,
     required WorkoutSet set,
   }) {
+    print('[toggleSetComplete] set.id=${set.id}, set.isComplete=${set.isComplete}, set.reps=${set.reps}, set.weightKg=${set.weightKg}');
     final workout = activeWorkout;
     if (workout == null) return;
 

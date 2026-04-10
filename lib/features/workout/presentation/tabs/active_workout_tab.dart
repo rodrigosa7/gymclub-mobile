@@ -21,10 +21,10 @@ class ActiveWorkoutTab extends StatefulWidget {
   final VoidCallback onOpenRoutines;
 
   @override
-  State<ActiveWorkoutTab> createState() => _ActiveWorkoutTabState();
+  State<ActiveWorkoutTab> createState() => ActiveWorkoutTabState();
 }
 
-class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
+class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
   bool _isReorderMode = false;
 
   void _startTimer() {
@@ -46,7 +46,11 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
     setState(() => _isReorderMode = true);
   }
 
-  void _showFinishWorkoutSheet(BuildContext context) {
+  void showFinishWorkoutSheet() {
+    _showFinishWorkoutSheet(context);
+  }
+
+  void _showFinishWorkoutSheet(BuildContext ctx) {
     final workout = widget.controller.activeWorkout;
     if (workout == null) return;
 
@@ -54,18 +58,18 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
     final notesController = TextEditingController(text: workout.notes);
 
     showModalBottomSheet<void>(
-      context: context,
+      context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
+      builder: (sheetCtx) => Padding(
         padding: EdgeInsets.only(
           left: 24,
           right: 24,
           top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 24,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -120,8 +124,8 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.pop(ctx);
-                      _confirmDiscardWorkout(context);
+                      Navigator.pop(sheetCtx);
+                      _confirmDiscardWorkout(ctx);
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
@@ -136,8 +140,7 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                   flex: 2,
                   child: FilledButton(
                     onPressed: () {
-                      Navigator.pop(ctx);
-                      setState(() => _isReorderMode = false);
+                      Navigator.pop(sheetCtx);
                       widget.controller.updateWorkoutName(nameController.text.trim());
                       widget.onCompleteWorkout();
                     },
@@ -155,22 +158,21 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
     );
   }
 
-  void _confirmDiscardWorkout(BuildContext context) {
+  void _confirmDiscardWorkout(BuildContext ctx) {
     showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Discard workout?'),
         content: const Text('This will delete the workout and all logged sets.'),
         actions: <Widget>[
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(ctx);
+              Navigator.pop(dialogCtx);
               widget.controller.discardActiveWorkout();
-              setState(() => _isReorderMode = false);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Discard'),
@@ -215,37 +217,13 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
               ? Container(
                   color: const Color(0xFF1F2937),
                   alignment: Alignment.center,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Long-press to reorder',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      GestureDetector(
-                        onTap: () => _showFinishWorkoutSheet(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            'Done',
-                            style: TextStyle(
-                              color: Color(0xFF1F2937),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: const Text(
+                    'Long-press to reorder',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
                   ),
                 )
               : const SizedBox.shrink(),

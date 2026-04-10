@@ -25,6 +25,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  final GlobalKey<ActiveWorkoutTabState> _activeWorkoutKey = GlobalKey<ActiveWorkoutTabState>();
 
   @override
   Widget build(BuildContext context) {
@@ -68,11 +69,20 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-              IconButton(
-                tooltip: 'Refresh',
-                onPressed: _handleRefresh,
-                icon: const Icon(Icons.refresh_rounded),
-              ),
+              if (_selectedIndex == 2)
+                IconButton(
+                  tooltip: 'Finish workout',
+                  onPressed: () {
+                    _activeWorkoutKey.currentState?.showFinishWorkoutSheet();
+                  },
+                  icon: const Icon(Icons.check_rounded),
+                )
+              else
+                IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: _handleRefresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
             ],
           ),
           body: SafeArea(
@@ -147,7 +157,7 @@ class _HomePageState extends State<HomePage> {
         );
       case 2:
         return ActiveWorkoutTab(
-          key: const ValueKey<String>('workout'),
+          key: _activeWorkoutKey,
           controller: widget.controller,
           onCompleteWorkout: _handleCompleteWorkout,
           onOpenRoutines: () {

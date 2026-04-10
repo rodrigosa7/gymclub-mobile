@@ -192,10 +192,9 @@ class _ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                   onReorder: (oldIndex, newIndex) {
                     if (newIndex > oldIndex) newIndex--;
                     widget.controller.reorderExercise(oldIndex, newIndex);
-                    // Exit reorder mode after drop
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) setState(() => _isReorderMode = false);
-                    });
+                  },
+                  onReorderEnd: (index) {
+                    if (mounted) setState(() => _isReorderMode = false);
                   },
                   proxyDecorator: (child, index, animation) {
                     return AnimatedBuilder(

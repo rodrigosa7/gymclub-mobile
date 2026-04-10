@@ -28,13 +28,24 @@ class ActiveWorkoutTab extends StatefulWidget {
 class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
   bool _isReorderMode = false;
   DateTime? _editedCompletedAt;
+  bool _isTimerStopped = false;
+  Duration? _frozenDuration;
 
   void _startTimer() {
     Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
+      if (!mounted || _isTimerStopped) return;
       setState(() {});
       _startTimer();
     });
+  }
+
+  void _stopTimer() {
+    _isTimerStopped = true;
+  }
+
+  void _resumeTimer() {
+    _isTimerStopped = false;
+    _startTimer();
   }
 
   @override
@@ -73,6 +84,10 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
   void _showFinishWorkoutSheet(BuildContext ctx) {
     final workout = widget.controller.activeWorkout;
     if (workout == null) return;
+
+    // Stop the live timer and freeze duration at current value
+    _stopTimer();
+    _frozenDuration = workout.elapsed;
 
     final nameController = TextEditingController(text: workout.name);
     final notesController = TextEditingController(text: workout.notes);
@@ -118,13 +133,17 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
               builder: (context, setSheetState) {
                 return GestureDetector(
                   onTap: () {
-                    _showDurationPicker(context, workout.elapsed, workout.startedAt);
-                    setSheetState(() {});
+                    _showDurationPicker(
+                      context,
+                      _frozenDuration ?? workout.elapsed,
+                      workout.startedAt,
+                      () => setSheetState(() {}),
+                    );
                   },
                   child: Row(
                     children: <Widget>[
                       Text(
-                        'Duration: ${formatDuration(_editedCompletedAt != null ? _editedCompletedAt!.difference(workout.startedAt) : workout.elapsed)}',
+                        'Duration: ${formatDuration(_editedCompletedAt != null ? _editedCompletedAt!.difference(workout.startedAt) : (_frozenDuration ?? workout.elapsed))}',
                         style: const TextStyle(
                           fontSize: 15,
                           color: Color(0xFF6C655D),
@@ -166,6 +185,7 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                     onPressed: () {
                       Navigator.pop(sheetCtx);
                       _confirmDiscardWorkout(ctx);
+                      _resumeTimer();
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
@@ -183,6 +203,7 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                       Navigator.pop(sheetCtx);
                       widget.controller.updateWorkoutName(nameController.text.trim());
                       widget.onCompleteWorkout(_editedCompletedAt);
+                      _resumeTimer();
                     },
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -222,7 +243,7 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
     );
   }
 
-  void _showDurationPicker(BuildContext ctx, Duration currentDuration, DateTime startedAt) {
+  void _showDurationPicker(BuildContext ctx, Duration currentDuration, DateTime startedAt, VoidCallback onChanged) {
     int minutes = currentDuration.inMinutes;
     int seconds = currentDuration.inSeconds % 60;
 
@@ -250,6 +271,7 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                             Duration(minutes: minutes, seconds: seconds),
                           );
                         });
+                        onChanged();
                       },
                       child: const Text('Done'),
                     ),

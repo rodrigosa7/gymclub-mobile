@@ -131,11 +131,14 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
             const SizedBox(height: 8),
             StatefulBuilder(
               builder: (context, setSheetState) {
+                final currentDuration = _editedCompletedAt != null
+                    ? _editedCompletedAt!.difference(workout.startedAt)
+                    : (_frozenDuration ?? workout.elapsed);
                 return GestureDetector(
                   onTap: () {
                     _showDurationPicker(
                       context,
-                      _frozenDuration ?? workout.elapsed,
+                      currentDuration,
                       workout.startedAt,
                       () => setSheetState(() {}),
                     );
@@ -143,7 +146,7 @@ class ActiveWorkoutTabState extends State<ActiveWorkoutTab> {
                   child: Row(
                     children: <Widget>[
                       Text(
-                        'Duration: ${formatDuration(_editedCompletedAt != null ? _editedCompletedAt!.difference(workout.startedAt) : (_frozenDuration ?? workout.elapsed))}',
+                        'Duration: ${formatDuration(currentDuration)}',
                         style: const TextStyle(
                           fontSize: 15,
                           color: Color(0xFF6C655D),

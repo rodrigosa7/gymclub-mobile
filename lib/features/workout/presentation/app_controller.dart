@@ -505,7 +505,6 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
-    api.dispose();
     super.dispose();
   }
 }

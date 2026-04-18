@@ -14,10 +14,12 @@ class HomePage extends StatefulWidget {
     super.key,
     required this.controller,
     required this.apiBaseUrl,
+    this.onLogout,
   });
 
   final AppController controller;
   final String apiBaseUrl;
+  final void Function()? onLogout;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -58,6 +60,12 @@ class _HomePageState extends State<HomePage> {
           appBar: AppBar(
             title: Text(_titleForIndex(_selectedIndex)),
             actions: <Widget>[
+              if (widget.onLogout != null)
+                IconButton(
+                  tooltip: 'Logout',
+                  onPressed: widget.onLogout,
+                  icon: const Icon(Icons.logout),
+                ),
               if (_selectedIndex == 2)
                 IconButton(
                   tooltip: 'Finish workout',

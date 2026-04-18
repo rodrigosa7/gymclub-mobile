@@ -18,15 +18,77 @@ class ApiException implements Exception {
   String toString() => 'ApiException($statusCode): $message';
 }
 
+class AuthResult {
+  AuthResult({required this.accessToken, required this.user});
+
+  final String accessToken;
+  final UserProfile user;
+}
+
 class GymClubApiClient {
   GymClubApiClient({required this.baseUrl, http.Client? client})
       : _client = client ?? http.Client();
 
   final String baseUrl;
   final http.Client _client;
+  String? _accessToken;
+
+  void setAccessToken(String? token) {
+    _accessToken = token;
+  }
+
+  String? get accessToken => _accessToken;
+
+  bool get isAuthenticated => _accessToken != null && _accessToken!.isNotEmpty;
 
   void dispose() {
     _client.close();
+  }
+
+  Future<AuthResult> register({
+    required String name,
+    required String email,
+    required String password,
+    required String preferredWeightUnit,
+  }) async {
+    final payload = await _post('/api/auth/register', <String, dynamic>{
+      'name': name,
+      'email': email,
+      'password': password,
+      'preferredWeightUnit': preferredWeightUnit,
+    });
+
+    final data = Map<String, dynamic>.from(payload as Map);
+    final token = data['accessToken'] as String;
+    _accessToken = token;
+
+    return AuthResult(
+      accessToken: token,
+      user: UserProfile.fromJson(Map<String, dynamic>.from(data['user'] as Map)),
+    );
+  }
+
+  Future<AuthResult> login({
+    required String email,
+    required String password,
+  }) async {
+    final payload = await _post('/api/auth/login', <String, dynamic>{
+      'email': email,
+      'password': password,
+    });
+
+    final data = Map<String, dynamic>.from(payload as Map);
+    final token = data['accessToken'] as String;
+    _accessToken = token;
+
+    return AuthResult(
+      accessToken: token,
+      user: UserProfile.fromJson(Map<String, dynamic>.from(data['user'] as Map)),
+    );
+  }
+
+  Future<void> logout() async {
+    _accessToken = null;
   }
 
   Future<UserProfile> fetchCurrentUser() async {
@@ -187,7 +249,7 @@ class GymClubApiClient {
   }
 
   Future<Object?> _get(String path) async {
-    final response = await _client.get(_uri(path));
+    final response = await _client.get(_uri(path), headers: _headers);
     return _decodeResponse(response);
   }
 
@@ -252,7 +314,13 @@ class GymClubApiClient {
         .toList();
   }
 
-  Map<String, String> get _headers => const <String, String>{
-        'Content-Type': 'application/json',
-      };
+  Map<String, String> get _headers {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+    if (_accessToken != null && _accessToken!.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $_accessToken';
+    }
+    return headers;
+  }
 }
